@@ -382,19 +382,6 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
   bailout(kAtomics, "AtomicXor");
 }
 
-void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
-                                      uint32_t offset_imm,
-                                      LiftoffRegister value, StoreType type) {
-  bailout(kAtomics, "AtomicExchange");
-}
-
-void LiftoffAssembler::AtomicCompareExchange(
-    Register dst_addr, Register offset_reg, uint32_t offset_imm,
-    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type) {
-  bailout(kAtomics, "AtomicCompareExchange");
-}
-
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
@@ -1126,7 +1113,7 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
+void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
                              const LiftoffRegister* args,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
@@ -1173,7 +1160,7 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
+void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   // For Arm64, we have more cache registers than wasm parameters. That means

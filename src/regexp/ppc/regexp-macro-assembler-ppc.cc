@@ -111,6 +111,8 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
       backtrack_label_(),
       exit_label_(),
       internal_failure_label_() {
+  masm_->set_root_array_available(false);
+
   DCHECK_EQ(0, registers_to_save % 2);
 
 
@@ -122,7 +124,6 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
   __ Ret();
   __ bind(&start_label_);  // And then continue from here.
 }
-
 
 RegExpMacroAssemblerPPC::~RegExpMacroAssemblerPPC() {
   delete masm_;

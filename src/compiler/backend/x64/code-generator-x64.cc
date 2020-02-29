@@ -595,9 +595,9 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     XMMRegister tmp2 = i.TempSimd128Register(1); \
     __ movq(tmp1, Immediate(1));                 \
     __ xorq(dst, dst);                           \
-    __ pxor(tmp2, tmp2);                         \
+    __ Pxor(tmp2, tmp2);                         \
     __ opcode(tmp2, i.InputSimd128Register(0));  \
-    __ ptest(tmp2, tmp2);                        \
+    __ Ptest(tmp2, tmp2);                        \
     __ cmovq(zero, dst, tmp1);                   \
   } while (false)
 
@@ -987,9 +987,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
-      break;
-    case kArchLookupSwitch:
-      AssembleArchLookupSwitch(instr);
       break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
@@ -2654,7 +2651,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2Shl: {
       // Take shift value modulo 2^6.
-      ASSEMBLE_SIMD_SHIFT(psllq, 6);
+      ASSEMBLE_SIMD_SHIFT(Psllq, 6);
       break;
     }
     case kX64I64x2ShrS: {
@@ -2667,14 +2664,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Modulo 64 not required as sarq_cl will mask cl to 6 bits.
 
       // lower quadword
-      __ pextrq(tmp, src, 0x0);
+      __ Pextrq(tmp, src, static_cast<int8_t>(0x0));
       __ sarq_cl(tmp);
-      __ pinsrq(dst, tmp, 0x0);
+      __ Pinsrq(dst, tmp, static_cast<int8_t>(0x0));
 
       // upper quadword
-      __ pextrq(tmp, src, 0x1);
+      __ Pextrq(tmp, src, static_cast<int8_t>(0x1));
       __ sarq_cl(tmp);
-      __ pinsrq(dst, tmp, 0x1);
+      __ Pinsrq(dst, tmp, static_cast<int8_t>(0x1));
       break;
     }
     case kX64I64x2Add: {
@@ -2804,7 +2801,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2ShrU: {
       // Take shift value modulo 2^6.
-      ASSEMBLE_SIMD_SHIFT(psrlq, 6);
+      ASSEMBLE_SIMD_SHIFT(Psrlq, 6);
       break;
     }
     case kX64I64x2MinU: {
@@ -3941,15 +3938,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S1x4AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqd);
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
     }
     case kX64S1x8AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqw);
       break;
     }
     case kX64S1x16AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
       break;
     }
     case kWord32AtomicExchangeInt8: {
@@ -4295,16 +4292,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   }
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
-}
-
-void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  X64OperandConverter i(this, instr);
-  Register input = i.InputRegister(0);
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ cmpl(input, Immediate(i.InputInt32(index + 0)));
-    __ j(equal, GetLabel(i.InputRpo(index + 1)));
-  }
-  AssembleArchJump(i.InputRpo(1));
 }
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {

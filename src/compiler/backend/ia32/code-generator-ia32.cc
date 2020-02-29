@@ -899,9 +899,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchLookupSwitch:
-      AssembleArchLookupSwitch(instr);
-      break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
@@ -2758,6 +2755,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
+    case kIA32I32x4Abs: {
+      __ Pabsd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kIA32I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
@@ -3086,6 +3087,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I16x8RoundingAverageU: {
       __ Pavgw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputOperand(1));
+      break;
+    }
+    case kIA32I16x8Abs: {
+      __ Pabsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kIA32I8x16Splat: {
@@ -3519,6 +3524,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I8x16RoundingAverageU: {
       __ Pavgb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputOperand(1));
+      break;
+    }
+    case kIA32I8x16Abs: {
+      __ Pabsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kIA32S128Zero: {
@@ -4411,16 +4420,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   }
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
-}
-
-void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  IA32OperandConverter i(this, instr);
-  Register input = i.InputRegister(0);
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ cmp(input, Immediate(i.InputInt32(index + 0)));
-    __ j(equal, GetLabel(i.InputRpo(index + 1)));
-  }
-  AssembleArchJump(i.InputRpo(1));
 }
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {

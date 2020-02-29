@@ -2342,23 +2342,6 @@ void InstructionSelector::EmitTableSwitch(
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelector::EmitLookupSwitch(
-    const SwitchInfo& sw, InstructionOperand const& value_operand) {
-  OperandGenerator g(this);
-  std::vector<CaseInfo> cases = sw.CasesSortedByOriginalOrder();
-  size_t input_count = 2 + sw.case_count() * 2;
-  DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
-  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
-  inputs[0] = value_operand;
-  inputs[1] = g.Label(sw.default_branch());
-  for (size_t index = 0; index < cases.size(); ++index) {
-    const CaseInfo& c = cases[index];
-    inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
-    inputs[index * 2 + 2 + 1] = g.Label(c.branch);
-  }
-  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
-}
-
 void InstructionSelector::EmitBinarySearchSwitch(
     const SwitchInfo& sw, InstructionOperand const& value_operand) {
   OperandGenerator g(this);
@@ -2643,9 +2626,11 @@ void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
+#if !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_IA32
 #endif  // !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2MinS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxS(Node* node) { UNIMPLEMENTED(); }

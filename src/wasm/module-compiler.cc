@@ -1080,7 +1080,8 @@ bool ExecuteCompilationUnits(
       DCHECK_LE(0, func_index);
       DCHECK_LT(func_index, native_module->num_functions());
       if (func_index < num_imported_functions) {
-        FunctionSig* sig = native_module->module()->functions[func_index].sig;
+        const FunctionSig* sig =
+            native_module->module()->functions[func_index].sig;
         WasmImportWrapperCache::CacheKey key(compiler::kDefaultImportCallKind,
                                              sig);
         // If two imported functions have the same key, only one of them should
@@ -1177,7 +1178,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
       keys;
   int num_imported_functions = native_module->num_imported_functions();
   for (int func_index = 0; func_index < num_imported_functions; func_index++) {
-    FunctionSig* sig = native_module->module()->functions[func_index].sig;
+    const FunctionSig* sig = native_module->module()->functions[func_index].sig;
     if (!IsJSCompatibleSignature(sig, native_module->enabled_features())) {
       continue;
     }
@@ -1381,8 +1382,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
   std::shared_ptr<NativeModule> native_module =
-      isolate->wasm_engine()->MaybeGetNativeModule(wasm_module->origin,
-                                                   wire_bytes.module_bytes());
+      isolate->wasm_engine()->MaybeGetNativeModule(
+          wasm_module->origin, wire_bytes.module_bytes(), isolate);
   if (native_module) {
     // TODO(thibaudm): Look into sharing export wrappers.
     CompileJsToWasmWrappers(isolate, wasm_module, export_wrappers_out);
@@ -1410,7 +1411,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   bool cache_hit = !isolate->wasm_engine()->UpdateNativeModuleCache(
-      thrower->error(), &native_module);
+      thrower->error(), &native_module, isolate);
   if (thrower->error()) return {};
 
   if (cache_hit) {
@@ -1593,7 +1594,7 @@ void AsyncCompileJob::CreateNativeModule(
 bool AsyncCompileJob::GetOrCreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   native_module_ = isolate_->wasm_engine()->MaybeGetNativeModule(
-      module->origin, wire_bytes_.module_bytes());
+      module->origin, wire_bytes_.module_bytes(), isolate_);
   if (native_module_ == nullptr) {
     CreateNativeModule(std::move(module), code_size_estimate);
     return false;
@@ -1719,7 +1720,7 @@ class AsyncCompileJob::CompilationStateCallback {
           std::shared_ptr<NativeModule> native_module = job_->native_module_;
           bool cache_hit =
               !job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-                  false, &native_module);
+                  false, &native_module, job_->isolate_);
           DCHECK_EQ(cache_hit, native_module != job_->native_module_);
           job_->DoSync<CompileFinished>(cache_hit ? std::move(native_module)
                                                   : nullptr);
@@ -1734,7 +1735,7 @@ class AsyncCompileJob::CompilationStateCallback {
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
           job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-              true, &job_->native_module_);
+              true, &job_->native_module_, job_->isolate_);
           job_->DoSync<CompileFailed>();
         }
         break;
@@ -2370,7 +2371,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
       cache_hit = !job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-          failed, &job_->native_module_);
+          failed, &job_->native_module_, job_->isolate_);
     }
     if (failed) {
       job_->AsyncCompileFailed();
@@ -2968,7 +2969,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 
 WasmCode* CompileImportWrapper(
     WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
-    compiler::WasmImportCallKind kind, FunctionSig* sig,
+    compiler::WasmImportCallKind kind, const FunctionSig* sig,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled

@@ -158,6 +158,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
   AVX_OP(Movdqu, movdqu)
+  AVX_OP(Pcmpeqb, pcmpeqb)
+  AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Addss, addss)
   AVX_OP(Addsd, addsd)
@@ -197,7 +199,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pavgb, pavgb)
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Psrad, psrad)
+  AVX_OP(Psllq, psllq)
   AVX_OP(Psrld, psrld)
+  AVX_OP(Psrlq, psrlq)
   AVX_OP(Paddd, paddd)
   AVX_OP(Paddq, paddq)
   AVX_OP(Pcmpgtd, pcmpgtd)
@@ -242,6 +246,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
   AVX_OP_SSE4_1(Pblendw, pblendw)
+  AVX_OP_SSE4_1(Ptest, ptest)
   AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
   AVX_OP_SSE4_1(Pmovsxwd, pmovsxwd)
   AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
@@ -378,6 +383,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Move(Register dst, Smi source);
 
+  void Move(Operand dst, Smi source) {
+    Register constant = GetSmiConstant(source);
+    movq(dst, constant);
+  }
+
   void Move(Register dst, ExternalReference ext);
 
   void Move(XMMRegister dst, uint32_t src);
@@ -474,7 +484,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
 
+  void Psllq(XMMRegister dst, int imm8) { Psllq(dst, static_cast<byte>(imm8)); }
   void Psllq(XMMRegister dst, byte imm8);
+  void Psrlq(XMMRegister dst, int imm8) { Psrlq(dst, static_cast<byte>(imm8)); }
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
