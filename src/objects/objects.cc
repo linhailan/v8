@@ -583,7 +583,7 @@ MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
   if (input->IsUndefined(isolate)) return handle(Smi::zero(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
-  double len = DoubleToInteger(input->Number()) + 0.0;
+  double len = DoubleToInteger(input->Number());
   auto js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
     THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len), Object);
@@ -4708,9 +4708,9 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
   return position;
 }
 
-template <typename Isolate>
+template <typename LocalIsolate>
 // static
-void Script::InitLineEnds(Isolate* isolate, HandleFor<Isolate, Script> script) {
+void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
   if (!script->line_ends().IsUndefined(isolate)) return;
   DCHECK(script->type() != Script::TYPE_WASM ||
          script->source_mapping_url().IsString());
@@ -4721,9 +4721,8 @@ void Script::InitLineEnds(Isolate* isolate, HandleFor<Isolate, Script> script) {
     script->set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     DCHECK(src_obj.IsString());
-    HandleFor<Isolate, String> src(String::cast(src_obj), isolate);
-    HandleFor<Isolate, FixedArray> array =
-        String::CalculateLineEnds(isolate, src, true);
+    Handle<String> src(String::cast(src_obj), isolate);
+    Handle<FixedArray> array = String::CalculateLineEnds(isolate, src, true);
     script->set_line_ends(*array);
   }
 
@@ -4733,7 +4732,7 @@ void Script::InitLineEnds(Isolate* isolate, HandleFor<Isolate, Script> script) {
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
     Isolate* isolate, Handle<Script> script);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
-    OffThreadIsolate* isolate, OffThreadHandle<Script> script);
+    OffThreadIsolate* isolate, Handle<Script> script);
 
 bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
@@ -4898,9 +4897,9 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
-template <typename Isolate>
-MaybeHandleFor<Isolate, SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Isolate* isolate, const FunctionLiteral* fun) {
+template <typename LocalIsolate>
+MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+    LocalIsolate* isolate, const FunctionLiteral* fun) {
   CHECK_NE(fun->function_literal_id(), kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
@@ -4911,13 +4910,13 @@ MaybeHandleFor<Isolate, SharedFunctionInfo> Script::FindSharedFunctionInfo(
   HeapObject heap_object;
   if (!shared->GetHeapObject(&heap_object) ||
       heap_object.IsUndefined(isolate)) {
-    return MaybeHandleFor<Isolate, SharedFunctionInfo>();
+    return MaybeHandle<SharedFunctionInfo>();
   }
   return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Isolate* isolate, const FunctionLiteral* fun);
-template OffThreadHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     OffThreadIsolate* isolate, const FunctionLiteral* fun);
 
 Script::Iterator::Iterator(Isolate* isolate)
@@ -5344,9 +5343,9 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 }
 
 // static
-template <typename Isolate>
+template <typename LocalIsolate>
 void SharedFunctionInfo::InitFromFunctionLiteral(
-    Isolate* isolate, HandleFor<Isolate, SharedFunctionInfo> shared_info,
+    LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
   DCHECK(!shared_info->name_or_scope_info().IsScopeInfo());
 
@@ -5372,8 +5371,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (!is_toplevel) {
     Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
     if (outer_scope) {
-      shared_info->set_outer_scope_info(
-          *outer_scope->scope_info().get<Isolate>());
+      shared_info->set_outer_scope_info(*outer_scope->scope_info());
       shared_info->set_private_name_lookup_skips_outer_class(
           lit->scope()->private_name_lookup_skips_outer_class());
     }
@@ -5400,12 +5398,11 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_is_safe_to_skip_arguments_adaptor(false);
   shared_info->UpdateExpectedNofPropertiesFromEstimate(lit);
 
-  HandleFor<Isolate, UncompiledData> data;
+  Handle<UncompiledData> data;
 
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
-    HandleFor<Isolate, PreparseData> preparse_data =
-        scope_data->Serialize(isolate);
+    Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);
 
     data = isolate->factory()->NewUncompiledDataWithPreparseData(
         lit->GetInferredName(isolate), lit->start_position(),
@@ -5425,9 +5422,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
                                      FunctionLiteral* lit, bool is_toplevel);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
     InitFromFunctionLiteral<OffThreadIsolate>(
-        OffThreadIsolate* isolate,
-        OffThreadHandle<SharedFunctionInfo> shared_info, FunctionLiteral* lit,
-        bool is_toplevel);
+        OffThreadIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+        FunctionLiteral* lit, bool is_toplevel);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
     FunctionLiteral* literal) {
@@ -6692,9 +6688,6 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   return new_table;
 }
 
-template bool
-HashTable<NameDictionary, NameDictionaryShape>::HasSufficientCapacityToAdd(int);
-
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
     int number_of_additional_elements) {
@@ -7287,10 +7280,9 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
   // Check whether the next enumeration index is valid.
   if (!PropertyDetails::IsValidIndex(index)) {
     // If not, we generate new indices for the properties.
-    int length = dictionary->NumberOfElements();
-
     Handle<FixedArray> iteration_order = IterationIndices(isolate, dictionary);
-    DCHECK_EQ(length, iteration_order->length());
+    int length = iteration_order->length();
+    DCHECK_LE(length, dictionary->NumberOfElements());
 
     // Iterate over the dictionary using the enumeration order and update
     // the dictionary with new enumeration indices.
@@ -7534,8 +7526,8 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
 template <typename Derived, typename Shape>
 Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     Isolate* isolate, Handle<Derived> dictionary) {
-  int length = dictionary->NumberOfElements();
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(dictionary->NumberOfElements());
   ReadOnlyRoots roots(isolate);
   int array_size = 0;
   {
@@ -7547,7 +7539,13 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
       array->set(array_size++, Smi::FromInt(i.as_int()));
     }
 
-    DCHECK_EQ(array_size, length);
+    // The global dictionary doesn't track its deletion count, so we may iterate
+    // fewer entries than the count of elements claimed by the dictionary.
+    if (std::is_same<Derived, GlobalDictionary>::value) {
+      DCHECK_LE(array_size, dictionary->NumberOfElements());
+    } else {
+      DCHECK_EQ(array_size, dictionary->NumberOfElements());
+    }
 
     EnumIndexComparator<Derived> cmp(raw_dictionary);
     // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
@@ -8171,62 +8169,44 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
 // Please note this list is compiler dependent.
 // Keep this at the end of this file
 
-template class HashTable<StringTable, StringTableShape>;
+#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)           \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
+      HashTable<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<CompilationCacheTable, CompilationCacheShape>;
+#define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)   \
+      ObjectHashTableBase<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
+#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)           \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                 \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
+      Dictionary<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
+#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE) \
+  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                 \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
+      BaseNameDictionary<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+EXTERN_DEFINE_HASH_TABLE(StringTable, StringTableShape)
+EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
+EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
+EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
+                                     EphemeronHashTableShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
+EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<NameDictionary, NameDictionaryShape>;
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NameDictionary, NameDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<GlobalDictionary, GlobalDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
-                                                    AllocationType,
-                                                    MinimumCapacity);
-
-template V8_EXPORT_PRIVATE Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
-                                                       Handle<NameDictionary>,
-                                                       int additionalCapacity);
-
-template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash(
-    ReadOnlyRoots roots);
+#undef EXTERN_DEFINE_HASH_TABLE
+#undef EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE
+#undef EXTERN_DEFINE_DICTIONARY
+#undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
 Maybe<bool> JSFinalizationRegistry::Cleanup(
     Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,

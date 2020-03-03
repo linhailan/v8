@@ -130,7 +130,7 @@ class ClassBoilerplate : public FixedArray {
   static Handle<ClassBoilerplate> BuildClassBoilerplate(Isolate* isolate,
                                                         ClassLiteral* expr);
 
-  static OffThreadHandle<ClassBoilerplate> BuildClassBoilerplate(
+  static Handle<ClassBoilerplate> BuildClassBoilerplate(
       OffThreadIsolate* isolate, ClassLiteral* expr);
 
   enum {
@@ -143,8 +143,6 @@ class ClassBoilerplate : public FixedArray {
     kPrototypeComputedPropertiesIndex,
     kBoileplateLength  // last element
   };
-
-  static const int kFullComputedEntrySize = 2;
 
  private:
   DECL_INT_ACCESSORS(flags)

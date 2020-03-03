@@ -388,14 +388,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       }
       CheckNotTyped(node);
       break;
-    case IrOpcode::kOsrNormalEntry:
-    case IrOpcode::kOsrLoopEntry:
-      // Osr entries take one control and effect.
-      CHECK_EQ(1, control_count);
-      CHECK_EQ(1, effect_count);
-      CHECK_EQ(2, input_count);
-      CheckNotTyped(node);
-      break;
 
     // Common operators
     // ----------------
@@ -1417,6 +1409,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kPoisonIndex:
       CheckValueInputIs(node, 0, Type::Unsigned32());
       CheckTypeIs(node, Type::Unsigned32());
+      break;
+    case IrOpcode::kCheckClosure:
+      // Any -> Function
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Function());
       break;
     case IrOpcode::kCheckHeapObject:
       CheckValueInputIs(node, 0, Type::Any());

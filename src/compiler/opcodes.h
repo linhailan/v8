@@ -30,8 +30,6 @@
   V(Return)                \
   V(TailCall)              \
   V(Terminate)             \
-  V(OsrNormalEntry)        \
-  V(OsrLoopEntry)          \
   V(Throw)                 \
   V(End)
 
@@ -409,6 +407,7 @@
   V(CheckSmi)                           \
   V(CheckHeapObject)                    \
   V(CheckFloat64Hole)                   \
+  V(CheckClosure)                       \
   V(CheckNotTaggedHole)                 \
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
